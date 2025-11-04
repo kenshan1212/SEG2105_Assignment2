@@ -38,7 +38,6 @@ public class ChatClient extends AbstractClient
    * @param port The port number to connect on.
    * @param clientUI The interface type variable.
    */
-  
   public ChatClient(String host, int port, ChatIF clientUI) 
     throws IOException 
   {
@@ -58,8 +57,6 @@ public class ChatClient extends AbstractClient
   public void handleMessageFromServer(Object msg) 
   {
     clientUI.display(msg.toString());
-    
-    
   }
 
   /**
@@ -75,8 +72,7 @@ public class ChatClient extends AbstractClient
     }
     catch(IOException e)
     {
-      clientUI.display
-        ("Could not send message to server.  Terminating client.");
+      clientUI.display("Could not send message to server.  Terminating client.");
       quit();
     }
   }
@@ -86,13 +82,12 @@ public class ChatClient extends AbstractClient
    */
   public void quit()
   {
-    try
-    {
-      closeConnection();
-    }
-    catch(IOException e) {}
+    try { closeConnection(); } catch(IOException e) {}
     System.exit(0);
   }
+
+  // ----- Exercise 1: react to server shutdown / exceptions -----
+
   @Override
   protected void connectionClosed() {
     if (clientUI != null) clientUI.display("Server has shut down. Exiting.");
@@ -111,6 +106,5 @@ public class ChatClient extends AbstractClient
     try { Thread.sleep(50); } catch (InterruptedException ignored) {}
     System.exit(0);
   }
-
 }
 //End of ChatClient class

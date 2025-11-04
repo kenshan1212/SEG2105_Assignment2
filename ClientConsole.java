@@ -34,8 +34,6 @@ public class ClientConsole implements ChatIF
    */
   ChatClient client;
   
-  
-  
   /**
    * Scanner to read from the console
    */
@@ -55,8 +53,6 @@ public class ClientConsole implements ChatIF
     try 
     {
       client= new ChatClient(host, port, this);
-      
-      
     } 
     catch(IOException exception) 
     {
@@ -80,19 +76,81 @@ public class ClientConsole implements ChatIF
   {
     try
     {
-
-      String message;
-
+      String line;
       while (true) 
       {
-        message = fromConsole.nextLine();
-        client.handleMessageFromClientUI(message);
+        line = fromConsole.nextLine();
+        if (line.startsWith("#")) {
+          handleCommand(line.trim());
+        } else {
+          client.handleMessageFromClientUI(line);
+        }
       }
     } 
     catch (Exception ex) 
     {
-      System.out.println
-        ("Unexpected error while reading from console!");
+      System.out.println("Unexpected error while reading from console!");
+    }
+  }
+
+  /** Exercise 2: support #-commands on client side */
+  private void handleCommand(String line) {
+    String[] parts = line.split("\\s+");
+    String cmd = parts[0].toLowerCase();
+
+    try {
+      switch (cmd) {
+        case "#quit":   // quit gracefully
+          client.quit();
+          break;
+
+        case "#logoff": // disconnect but do not quit
+          if (client.isConnected()) {
+            client.closeConnection();
+            display("Logged off.");
+          } else {
+            display("Already logged off.");
+          }
+          break;
+
+        case "#sethost": // only when logged off
+          if (parts.length < 2) { display("Usage: #sethost <host>"); break; }
+          if (client.isConnected()) { display("Error: You must log off before setting host."); break; }
+          client.setHost(parts[1]);
+          display("Host set to " + client.getHost());
+          break;
+
+        case "#setport": // only when logged off
+          if (parts.length < 2) { display("Usage: #setport <port>"); break; }
+          if (client.isConnected()) { display("Error: You must log off before setting port."); break; }
+          try {
+            int p = Integer.parseInt(parts[1]);
+            client.setPort(p);
+            display("Port set to " + client.getPort());
+          } catch (NumberFormatException nfe) {
+            display("Port must be an integer.");
+          }
+          break;
+
+        case "#login": // connect when not already connected
+          if (client.isConnected()) { display("Error: Already connected."); break; }
+          client.openConnection();
+          display("Connected to " + client.getHost() + ":" + client.getPort());
+          break;
+
+        case "#gethost":
+          display("Current host: " + client.getHost());
+          break;
+
+        case "#getport":
+          display("Current port: " + client.getPort());
+          break;
+
+        default:
+          display("Unknown command: " + cmd);
+      }
+    } catch (IOException ioe) {
+      display("Command failed: " + ioe.getMessage());
     }
   }
 
@@ -120,21 +178,16 @@ public class ClientConsole implements ChatIF
     String host;
     int port;
 
-    try {
-      host = args[0];
-    } catch (ArrayIndexOutOfBoundsException e) {
-      host = "localhost";
-    }
+    // host
+    try { host = args[0]; }
+    catch(ArrayIndexOutOfBoundsException e) { host = "localhost"; }
 
-    try {
-      port = Integer.parseInt(args[1]);
-    } catch (Exception e) {
-      port = DEFAULT_PORT; // 5555
-    }
+    // optional port
+    try { port = Integer.parseInt(args[1]); }
+    catch(Exception e) { port = DEFAULT_PORT; }
 
-    ClientConsole chat = new ClientConsole(host, port);
-    chat.accept();  // Wait for console data
+    ClientConsole chat= new ClientConsole(host, port);
+    chat.accept();  //Wait for console data
   }
-
 }
 //End of ConsoleChat class
