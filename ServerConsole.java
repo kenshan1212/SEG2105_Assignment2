@@ -38,7 +38,7 @@ public class ServerConsole implements ChatIF, Runnable {
     try {
       switch (cmd) {
         case "#quit":
-          server.close(); // 會同時斷所有 client
+          server.close();
           System.exit(0);
           break;
 
@@ -52,13 +52,13 @@ public class ServerConsole implements ChatIF, Runnable {
           break;
 
         case "#close":
-          server.close(); // 停止並斷所有 client
+          server.close(); 
           display("Server closed.");
           break;
 
         case "#setport":
           if (parts.length < 2) { display("Usage: #setport <port>"); break; }
-          if (!server.isClosed()) { // 僅在關閉狀態允許
+          if (!server.isClosed()) { 
             display("Error: You must close the server before changing port.");
             break;
           }

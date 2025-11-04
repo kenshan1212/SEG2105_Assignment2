@@ -20,7 +20,7 @@ import edu.seg2105.client.common.*;
  */
 public class ChatClient extends AbstractClient
 {
-  //Instance variables **********************************************
+  //Instance variables *******************************************
   
   /**
    * The interface type variable.  It allows the implementation of 
@@ -28,26 +28,39 @@ public class ChatClient extends AbstractClient
    */
   ChatIF clientUI; 
 
+  /** Exercise 3: login id to send to the server after connecting */
+  private final String loginId;
   
-  //Constructors ****************************************************
+  //Constructors ***********************************************
   
   /**
    * Constructs an instance of the chat client.
    *
    * @param host The server to connect to.
    * @param port The port number to connect on.
+   * @param loginId The login id to announce to the server.
    * @param clientUI The interface type variable.
    */
-  public ChatClient(String host, int port, ChatIF clientUI) 
+  public ChatClient(String host, int port, String loginId, ChatIF clientUI) 
     throws IOException 
   {
     super(host, port); //Call the superclass constructor
     this.clientUI = clientUI;
-    openConnection();
+    this.loginId = loginId;
+    openConnection();         // establish TCP connection
+    sendLogin();              // Exercise 3: immediately announce login id
   }
 
+  /** Exercise 3: called after reconnection from the console (#login) */
+  public void sendLogin() {
+    try {
+      sendToServer("#login " + loginId);
+    } catch (IOException e) {
+      if (clientUI != null) clientUI.display("Failed to send login id: " + e.getMessage());
+    }
+  }
   
-  //Instance methods ************************************************
+  //Instance methods ***********************************************
     
   /**
    * This method handles all data that comes in from the server.

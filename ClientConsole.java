@@ -33,6 +33,9 @@ public class ClientConsole implements ChatIF
    * The instance of the client that created this ConsoleChat.
    */
   ChatClient client;
+
+  /** Exercise 3: login id is mandatory */
+  private final String loginId;
   
   /**
    * Scanner to read from the console
@@ -47,12 +50,14 @@ public class ClientConsole implements ChatIF
    *
    * @param host The host to connect to.
    * @param port The port to connect on.
+   * @param loginId The login id (mandatory for Exercise 3).
    */
-  public ClientConsole(String host, int port) 
+  public ClientConsole(String host, int port, String loginId) 
   {
+    this.loginId = loginId;
     try 
     {
-      client= new ChatClient(host, port, this);
+      client = new ChatClient(host, port, loginId, this);
     } 
     catch(IOException exception) 
     {
@@ -66,7 +71,7 @@ public class ClientConsole implements ChatIF
   }
 
   
-  //Instance methods ************************************************
+  //Instance methods **********************************************
   
   /**
    * This method waits for input from the console.  Once it is 
@@ -135,6 +140,7 @@ public class ClientConsole implements ChatIF
         case "#login": // connect when not already connected
           if (client.isConnected()) { display("Error: Already connected."); break; }
           client.openConnection();
+          client.sendLogin(); // Exercise 3: announce login id on reconnect
           display("Connected to " + client.getHost() + ":" + client.getPort());
           break;
 
@@ -171,22 +177,30 @@ public class ClientConsole implements ChatIF
   /**
    * This method is responsible for the creation of the Client UI.
    *
-   * @param args[0] The host to connect to.
+   * @param args Command line: args[0]=loginId (mandatory),
+   *             args[1]=host (optional), args[2]=port (optional).
    */
   public static void main(String[] args) 
   {
+    // Exercise 3: login id is mandatory
+    if (args.length < 1 || args[0] == null || args[0].trim().isEmpty()) {
+      System.out.println("Usage: java edu.seg2105.client.ui.ClientConsole <loginId> [host] [port]");
+      System.exit(1);
+    }
+    String loginId = args[0].trim();
+
     String host;
     int port;
 
-    // host
-    try { host = args[0]; }
+    // host (optional)
+    try { host = args[1]; }
     catch(ArrayIndexOutOfBoundsException e) { host = "localhost"; }
 
-    // optional port
-    try { port = Integer.parseInt(args[1]); }
+    // port (optional)
+    try { port = Integer.parseInt(args[2]); }
     catch(Exception e) { port = DEFAULT_PORT; }
 
-    ClientConsole chat= new ClientConsole(host, port);
+    ClientConsole chat = new ClientConsole(host, port, loginId);
     chat.accept();  //Wait for console data
   }
 }

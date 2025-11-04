@@ -8,6 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import edu.seg2105.client.common.ChatIF;
 import ocsf.server.*;
+import edu.seg2105.edu.server.ui.ServerConsole;
+
 
 /**
  * This class overrides some of the methods in the abstract 
@@ -30,6 +32,9 @@ public class EchoServer extends AbstractServer
   // Keep nice human labels for connections (since this OCSF version
   // does not provide setInfo/getInfo on ConnectionToClient)
   private final ConcurrentHashMap<ConnectionToClient, String> labels = new ConcurrentHashMap<>();
+
+  // Exercise 3: store login ids per connection
+  private final ConcurrentHashMap<ConnectionToClient, String> loginIds = new ConcurrentHashMap<>();
 
   // Server state flags for Exercise 2 commands
   private volatile boolean closed = true;   // before listen() we consider closed
@@ -61,8 +66,45 @@ public class EchoServer extends AbstractServer
   public void handleMessageFromClient(Object msg, ConnectionToClient client)
   {
     String label = labels.getOrDefault(client, String.valueOf(client));
-    System.out.println("Message received: " + msg + " from " + label);
+
+    if (msg instanceof String) {
+      String s = (String) msg;
+
+      // Exercise 3: recognize #login <loginId>
+      if (s.startsWith("#login")) {
+        String[] parts = s.split("\\s+", 2);
+        if (loginIds.containsKey(client)) {
+          // already logged in -> error and disconnect
+          sendErrorAndClose(client, "Already logged in.");
+          return;
+        }
+        if (parts.length < 2 || parts[1].trim().isEmpty()) {
+          sendErrorAndClose(client, "Missing login id.");
+          return;
+        }
+        String id = parts[1].trim();
+        loginIds.put(client, id);
+        System.out.println("[" + id + "] logged in from " + label);
+        try { client.sendToClient("SERVER MSG> login accepted for '" + id + "'"); } catch (Exception ignore) {}
+        return;
+      }
+
+      // normal text message: prefix with login id
+      String id = loginIds.get(client);
+      if (id == null) id = "ANON";
+      System.out.println("Message received: " + s + " from " + label + " as " + id);
+      this.sendToAllClients(id + "> " + s);
+      return;
+    }
+
+    // Fallback for non-string messages
+    System.out.println("Message received (object) from " + label);
     this.sendToAllClients(msg);
+  }
+
+  private void sendErrorAndClose(ConnectionToClient client, String err) {
+    try { client.sendToClient("SERVER MSG> ERROR: " + err); } catch (Exception ignore) {}
+    try { client.close(); } catch (Exception ignore) {}
   }
 
   /** Exercise 2: allow server operator to type messages that
@@ -116,16 +158,18 @@ public class EchoServer extends AbstractServer
   @Override
   synchronized protected void clientDisconnected(ConnectionToClient client) {
     String label = labels.getOrDefault(client, String.valueOf(client));
-    System.out.println("Client disconnected: " + label);
+    String id = loginIds.get(client);
+    System.out.println("Client disconnected: " + (id != null ? "["+id+"] " : "") + label);
     labels.remove(client);
-    // superclass will also remove from its connection table
+    loginIds.remove(client);
     super.clientDisconnected(client);
   }
 
   @Override
   synchronized protected void clientException(ConnectionToClient client, Throwable exception) {
     String label = labels.getOrDefault(client, String.valueOf(client));
-    System.out.println("Client exception from " + label + " : " + exception);
+    String id = loginIds.get(client);
+    System.out.println("Client exception from " + (id != null ? "["+id+"] " : "") + label + " : " + exception);
     try { client.close(); } catch (Exception ignore) {}
   }
   
@@ -158,94 +202,6 @@ public class EchoServer extends AbstractServer
 
     // Start server-side console (implements ChatIF like ClientConsole)
     new ServerConsole(sv).accept();
-  }
-
-  // ====== Inner class: ServerConsole (Exercise 2 requirement) ======
-  // Warning: Some of the code here is cloned from ClientConsole
-
-  private static class ServerConsole implements ChatIF, Runnable {
-    private final EchoServer server;
-    private final Scanner in = new Scanner(System.in);
-
-    ServerConsole(EchoServer server) { this.server = server; }
-
-    public void accept() { run(); }
-
-    @Override public void run() {
-      try {
-        while (true) {
-          String line = in.nextLine();
-          if (line.startsWith("#")) {
-            handleCommand(line.trim());
-          } else {
-            server.handleMessageFromServerUI(line);
-          }
-        }
-      } catch (Exception e) {
-        display("Server console error: " + e.getMessage());
-      }
-    }
-
-    private void handleCommand(String line) {
-      String[] parts = line.split("\\s+");
-      String cmd = parts[0].toLowerCase();
-
-      try {
-        switch (cmd) {
-          case "#quit":
-            server.close(); // also disconnects all clients
-            System.exit(0);
-            break;
-
-          case "#stop":
-            if (server.isListening()) {
-              server.stopListening();
-              display("Server stopped listening.");
-            } else {
-              display("Server is already stopped.");
-            }
-            break;
-
-          case "#close":
-            server.close(); // stop + disconnect all clients
-            display("Server closed.");
-            break;
-
-          case "#setport":
-            if (parts.length < 2) { display("Usage: #setport <port>"); break; }
-            if (!server.isClosed()) {
-              display("Error: You must close the server before changing port.");
-              break;
-            }
-            int p = Integer.parseInt(parts[1]);
-            server.setPort(p);
-            display("Port set to " + server.getPort());
-            break;
-
-          case "#start":
-            if (!server.isListening()) {
-              server.listen();
-            } else {
-              display("Server is already listening.");
-            }
-            break;
-
-          case "#getport":
-            display("Current port: " + server.getPort());
-            break;
-
-          default:
-            display("Unknown command: " + cmd);
-        }
-      } catch (Exception e) {
-        display("Command failed: " + e.getMessage());
-      }
-    }
-
-    @Override
-    public void display(String message) {
-      System.out.println("> " + message);
-    }
   }
 }
 //End of EchoServer class
